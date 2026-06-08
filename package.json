@@ -1,0 +1,44 @@
+{
+  "name": "data-visualization-editor",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.10",
+    "echarts": "^5.5.0",
+    "expression-eval": "^5.0.1",
+    "html2canvas": "^1.4.1",
+    "idb": "^8.0.0",
+    "jspdf": "^2.5.1",
+    "lodash-es": "^4.17.21",
+    "papaparse": "^5.4.1",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21",
+    "vue-draggable-plus": "^0.4.0",
+    "vue-grid-layout": "^3.0.0-beta1",
+    "vue-router": "^4.3.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.10.2",
+    "@types/lodash-es": "^4.17.12",
+    "@types/papaparse": "^5.3.14",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "@vue/eslint-config-prettier": "^9.0.0",
+    "@vue/eslint-config-typescript": "^13.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-vue": "^9.25.0",
+    "prettier": "^3.2.5",
+    "sass": "^1.75.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.10",
+    "vue-tsc": "^2.0.29"
+  }
+}
