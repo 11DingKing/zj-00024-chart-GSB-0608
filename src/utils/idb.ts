@@ -12,6 +12,12 @@ export interface AppDB {
 
 let db: IDBPDatabase<AppDB> | null = null
 
+// IndexedDB 的 structured clone 不能克隆 Vue 的 reactive Proxy，
+// 写入前先把对象转成纯 JSON 对象，避免 DataCloneError。
+function toPlain<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value))
+}
+
 export async function initDB(): Promise<IDBPDatabase<AppDB>> {
   if (db) return db
 
@@ -46,7 +52,7 @@ export async function getAllDataSources(): Promise<DataSource[]> {
 
 export async function saveDataSource(dataSource: DataSource): Promise<void> {
   const database = await initDB()
-  await database.put('dataSources', dataSource)
+  await database.put('dataSources', toPlain(dataSource))
 }
 
 export async function deleteDataSource(id: string): Promise<void> {
@@ -61,7 +67,7 @@ export async function getAllCharts(): Promise<ChartConfig[]> {
 
 export async function saveChart(chart: ChartConfig): Promise<void> {
   const database = await initDB()
-  await database.put('charts', chart)
+  await database.put('charts', toPlain(chart))
 }
 
 export async function deleteChart(id: string): Promise<void> {
@@ -76,7 +82,7 @@ export async function getAllDashboards(): Promise<Dashboard[]> {
 
 export async function saveDashboard(dashboard: Dashboard): Promise<void> {
   const database = await initDB()
-  await database.put('dashboards', dashboard)
+  await database.put('dashboards', toPlain(dashboard))
 }
 
 export async function deleteDashboard(id: string): Promise<void> {
