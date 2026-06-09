@@ -1,31 +1,69 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '../stores/settings'
 import { useDataSourcesStore } from '../stores/dataSources'
 import { useChartsStore } from '../stores/charts'
+import { useDashboardsStore } from '../stores/dashboards'
 import { useHistoryStore } from '../stores/history'
 import { exportProjectAsJSON, importProjectFromJSON } from '../utils/exportUtils'
 import { useI18nStore } from '../stores/i18n'
+import * as idb from '../utils/idb'
 
 const router = useRouter()
 const settingsStore = useSettingsStore()
 const dataSourcesStore = useDataSourcesStore()
 const chartsStore = useChartsStore()
+const dashboardsStore = useDashboardsStore()
 const historyStore = useHistoryStore()
 const i18nStore = useI18nStore()
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
+function applyState(state: Record<string, any>) {
+  if (state.dataSources !== undefined) {
+    dataSourcesStore.$patch({
+      dataSources: state.dataSources,
+      activeDataSourceId: state.activeDataSourceId ?? null
+    })
+  }
+  if (state.charts !== undefined) {
+    chartsStore.$patch({
+      charts: state.charts,
+      activeChartId: state.activeChartId ?? null
+    })
+  }
+  if (state.dashboards !== undefined) {
+    dashboardsStore.$patch({
+      dashboards: state.dashboards,
+      activeDashboardId: state.activeDashboardId ?? null
+    })
+  }
+  Promise.all([
+    ...(state.dataSources ?? []).map((ds: any) => idb.saveDataSource(ds)),
+    ...(state.charts ?? []).map((c: any) => idb.saveChart(c)),
+    ...(state.dashboards ?? []).map((d: any) => idb.saveDashboard(d))
+  ]).finally(() => {
+    historyStore.finishRestore()
+  })
+}
+
 function handleUndo() {
   if (historyStore.canUndo) {
-    historyStore.undo()
+    const record = historyStore.undo()
+    if (record) {
+      applyState(record.state)
+    }
   }
 }
 
 function handleRedo() {
   if (historyStore.canRedo) {
-    historyStore.redo()
+    const record = historyStore.redo()
+    if (record) {
+      applyState(record.state)
+    }
   }
 }
 
