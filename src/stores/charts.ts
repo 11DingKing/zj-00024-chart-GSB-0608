@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { ChartConfig, ChartType, ChartSlots, SlotField, Filter, ChartStyle } from '../types'
 import { generateId, getDefaultChartStyle, inferChartType } from '../utils/chartUtils'
 import * as idb from '../utils/idb'
+import { useHistoryStore } from './history'
 
 export const useChartsStore = defineStore('charts', () => {
   const charts = ref<ChartConfig[]>([])
@@ -50,6 +51,9 @@ export const useChartsStore = defineStore('charts', () => {
     await idb.saveChart(chart)
     activeChartId.value = chart.id
 
+    const historyStore = useHistoryStore()
+    historyStore.push('createChart', '创建图表')
+
     return chart
   }
 
@@ -61,6 +65,9 @@ export const useChartsStore = defineStore('charts', () => {
         updatedAt: Date.now()
       }
       await idb.saveChart(charts.value[index])
+
+      const historyStore = useHistoryStore()
+      historyStore.push('updateChart', '更新图表')
     }
   }
 
@@ -206,6 +213,9 @@ export const useChartsStore = defineStore('charts', () => {
       if (activeChartId.value === id) {
         activeChartId.value = null
       }
+
+      const historyStore = useHistoryStore()
+      historyStore.push('deleteChart', '删除图表')
     }
   }
 
@@ -215,6 +225,9 @@ export const useChartsStore = defineStore('charts', () => {
       chart.title = newTitle
       chart.updatedAt = Date.now()
       await idb.saveChart(chart)
+
+      const historyStore = useHistoryStore()
+      historyStore.push('renameChart', '重命名图表')
     }
   }
 

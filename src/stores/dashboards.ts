@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Dashboard, DashboardTab, DashboardItem } from '../types'
 import { generateId } from '../utils/chartUtils'
 import * as idb from '../utils/idb'
+import { useHistoryStore } from './history'
 
 export const useDashboardsStore = defineStore('dashboards', () => {
   const dashboards = ref<Dashboard[]>([])
@@ -50,6 +51,9 @@ export const useDashboardsStore = defineStore('dashboards', () => {
     await idb.saveDashboard(dashboard)
     activeDashboardId.value = dashboard.id
 
+    const historyStore = useHistoryStore()
+    historyStore.push('createDashboard', '创建仪表盘')
+
     return dashboard
   }
 
@@ -61,6 +65,9 @@ export const useDashboardsStore = defineStore('dashboards', () => {
         updatedAt: Date.now()
       }
       await idb.saveDashboard(dashboards.value[index])
+
+      const historyStore = useHistoryStore()
+      historyStore.push('updateDashboard', '更新仪表盘')
     }
   }
 
@@ -184,6 +191,9 @@ export const useDashboardsStore = defineStore('dashboards', () => {
       if (activeDashboardId.value === id) {
         activeDashboardId.value = dashboards.value[0]?.id || null
       }
+
+      const historyStore = useHistoryStore()
+      historyStore.push('deleteDashboard', '删除仪表盘')
     }
   }
 
@@ -193,6 +203,9 @@ export const useDashboardsStore = defineStore('dashboards', () => {
       dashboard.name = newName
       dashboard.updatedAt = Date.now()
       await idb.saveDashboard(dashboard)
+
+      const historyStore = useHistoryStore()
+      historyStore.push('renameDashboard', '重命名仪表盘')
     }
   }
 

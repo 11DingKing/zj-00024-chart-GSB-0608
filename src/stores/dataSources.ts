@@ -5,6 +5,7 @@ import { parseFile } from '../utils/fileParser'
 import { generateId } from '../utils/chartUtils'
 import { convertFieldType, applyComputedFields } from '../utils/dataProcessor'
 import * as idb from '../utils/idb'
+import { useHistoryStore } from './history'
 
 export const useDataSourcesStore = defineStore('dataSources', () => {
   const dataSources = ref<DataSource[]>([])
@@ -40,6 +41,9 @@ export const useDataSourcesStore = defineStore('dataSources', () => {
     dataSources.value.push(dataSource)
     await idb.saveDataSource(dataSource)
 
+    const historyStore = useHistoryStore()
+    historyStore.push('uploadFile', '上传数据源')
+
     return dataSource
   }
 
@@ -55,6 +59,9 @@ export const useDataSourcesStore = defineStore('dataSources', () => {
         updatedAt: Date.now()
       }
       await idb.saveDataSource(dataSources.value[index])
+
+      const historyStore = useHistoryStore()
+      historyStore.push('updateDataSource', '更新数据源')
     }
   }
 
@@ -113,6 +120,9 @@ export const useDataSourcesStore = defineStore('dataSources', () => {
       if (activeDataSourceId.value === id) {
         activeDataSourceId.value = dataSources.value[0]?.id || null
       }
+
+      const historyStore = useHistoryStore()
+      historyStore.push('deleteDataSource', '删除数据源')
     }
   }
 
@@ -122,6 +132,9 @@ export const useDataSourcesStore = defineStore('dataSources', () => {
       dataSource.name = newName
       dataSource.updatedAt = Date.now()
       await idb.saveDataSource(dataSource)
+
+      const historyStore = useHistoryStore()
+      historyStore.push('renameDataSource', '重命名数据源')
     }
   }
 

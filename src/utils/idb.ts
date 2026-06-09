@@ -1,99 +1,103 @@
-import { openDB, IDBPDatabase } from 'idb'
-import type { DataSource, ChartConfig, Dashboard } from '../types'
+import { openDB, IDBPDatabase } from "idb";
+import type { DataSource, ChartConfig, Dashboard } from "../types";
 
-const DB_NAME = 'dataviz_editor_db'
-const DB_VERSION = 1
+const DB_NAME = "dataviz_editor_db";
+const DB_VERSION = 1;
 
 export interface AppDB {
-  dataSources: DataSource
-  charts: ChartConfig
-  dashboards: Dashboard
+  dataSources: DataSource;
+  charts: ChartConfig;
+  dashboards: Dashboard;
 }
 
-let db: IDBPDatabase<AppDB> | null = null
+let db: IDBPDatabase<AppDB> | null = null;
+
+function toPlainObject<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
 
 export async function initDB(): Promise<IDBPDatabase<AppDB>> {
-  if (db) return db
+  if (db) return db;
 
   db = await openDB<AppDB>(DB_NAME, DB_VERSION, {
     upgrade(db) {
-      if (!db.objectStoreNames.contains('dataSources')) {
-        const store = db.createObjectStore('dataSources', { keyPath: 'id' })
-        store.createIndex('name', 'name', { unique: false })
-        store.createIndex('createdAt', 'createdAt', { unique: false })
+      if (!db.objectStoreNames.contains("dataSources")) {
+        const store = db.createObjectStore("dataSources", { keyPath: "id" });
+        store.createIndex("name", "name", { unique: false });
+        store.createIndex("createdAt", "createdAt", { unique: false });
       }
 
-      if (!db.objectStoreNames.contains('charts')) {
-        const store = db.createObjectStore('charts', { keyPath: 'id' })
-        store.createIndex('dataSourceId', 'dataSourceId', { unique: false })
-        store.createIndex('createdAt', 'createdAt', { unique: false })
+      if (!db.objectStoreNames.contains("charts")) {
+        const store = db.createObjectStore("charts", { keyPath: "id" });
+        store.createIndex("dataSourceId", "dataSourceId", { unique: false });
+        store.createIndex("createdAt", "createdAt", { unique: false });
       }
 
-      if (!db.objectStoreNames.contains('dashboards')) {
-        const store = db.createObjectStore('dashboards', { keyPath: 'id' })
-        store.createIndex('createdAt', 'createdAt', { unique: false })
+      if (!db.objectStoreNames.contains("dashboards")) {
+        const store = db.createObjectStore("dashboards", { keyPath: "id" });
+        store.createIndex("createdAt", "createdAt", { unique: false });
       }
-    }
-  })
+    },
+  });
 
-  return db
+  return db;
 }
 
 export async function getAllDataSources(): Promise<DataSource[]> {
-  const database = await initDB()
-  return database.getAll('dataSources')
+  const database = await initDB();
+  return database.getAll("dataSources");
 }
 
 export async function saveDataSource(dataSource: DataSource): Promise<void> {
-  const database = await initDB()
-  await database.put('dataSources', dataSource)
+  const database = await initDB();
+  await database.put("dataSources", toPlainObject(dataSource));
 }
 
 export async function deleteDataSource(id: string): Promise<void> {
-  const database = await initDB()
-  await database.delete('dataSources', id)
+  const database = await initDB();
+  await database.delete("dataSources", id);
 }
 
 export async function getAllCharts(): Promise<ChartConfig[]> {
-  const database = await initDB()
-  return database.getAll('charts')
+  const database = await initDB();
+  return database.getAll("charts");
 }
 
 export async function saveChart(chart: ChartConfig): Promise<void> {
-  const database = await initDB()
-  await database.put('charts', chart)
+  const database = await initDB();
+  await database.put("charts", toPlainObject(chart));
 }
 
 export async function deleteChart(id: string): Promise<void> {
-  const database = await initDB()
-  await database.delete('charts', id)
+  const database = await initDB();
+  await database.delete("charts", id);
 }
 
 export async function getAllDashboards(): Promise<Dashboard[]> {
-  const database = await initDB()
-  return database.getAll('dashboards')
+  const database = await initDB();
+  return database.getAll("dashboards");
 }
 
 export async function saveDashboard(dashboard: Dashboard): Promise<void> {
-  const database = await initDB()
-  await database.put('dashboards', dashboard)
+  const database = await initDB();
+  await database.put("dashboards", toPlainObject(dashboard));
 }
 
 export async function deleteDashboard(id: string): Promise<void> {
-  const database = await initDB()
-  await database.delete('dashboards', id)
+  const database = await initDB();
+  await database.delete("dashboards", id);
 }
 
 export async function clearAllData(): Promise<void> {
-  const database = await initDB()
+  const database = await initDB();
   const tx = database.transaction(
-    ['dataSources', 'charts', 'dashboards'],
-    'readwrite'
-  )
+    ["dataSources", "charts", "dashboards"],
+    "readwrite",
+  );
   await Promise.all([
-    tx.objectStore('dataSources').clear(),
-    tx.objectStore('charts').clear(),
-    tx.objectStore('dashboards').clear()
-  ])
-  await tx.done
+    tx.objectStore("dataSources").clear(),
+    tx.objectStore("charts").clear(),
+    tx.objectStore("dashboards").clear(),
+  ]);
+  await tx.done;
 }
