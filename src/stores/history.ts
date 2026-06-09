@@ -4,6 +4,15 @@ import type { HistoryRecord } from '../types'
 
 const MAX_HISTORY = 50
 
+function cloneState<T>(state: T): T {
+  if (state === null || state === undefined) return state
+  try {
+    return JSON.parse(JSON.stringify(state))
+  } catch {
+    return state
+  }
+}
+
 export const useHistoryStore = defineStore('history', () => {
   const past = ref<HistoryRecord[]>([])
   const present = ref<HistoryRecord | null>(null)
@@ -17,20 +26,30 @@ export const useHistoryStore = defineStore('history', () => {
     description: string,
     state: Record<string, any>
   ) {
-    if (present.value) {
-      past.value.push(present.value)
-      if (past.value.length > MAX_HISTORY) {
-        past.value.shift()
-      }
-    }
-
-    present.value = {
+    const record: HistoryRecord = {
       timestamp: Date.now(),
       type,
       description,
-      state
+      state: cloneState(state)
     }
 
+    if (present.value) {
+      past.value.push(present.value)
+    } else {
+      // First push: capture an implicit baseline so the very first
+      // action can be undone back to the initial state.
+      past.value.push({
+        timestamp: record.timestamp,
+        type: '__initial__',
+        description: 'initial',
+        state: {}
+      })
+    }
+    if (past.value.length > MAX_HISTORY) {
+      past.value.shift()
+    }
+
+    present.value = record
     future.value = []
   }
 
@@ -43,7 +62,10 @@ export const useHistoryStore = defineStore('history', () => {
     }
     present.value = prev
 
-    return prev
+    return {
+      ...prev,
+      state: cloneState(prev.state)
+    }
   }
 
   function redo(): HistoryRecord | null {
@@ -55,7 +77,10 @@ export const useHistoryStore = defineStore('history', () => {
     }
     present.value = next
 
-    return next
+    return {
+      ...next,
+      state: cloneState(next.state)
+    }
   }
 
   function clear() {
