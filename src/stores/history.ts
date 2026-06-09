@@ -59,7 +59,7 @@ export const useHistoryStore = defineStore("history", () => {
   const canUndo = computed(() => past.value.length > 0);
   const canRedo = computed(() => future.value.length > 0);
 
-  function push(type: string, description: string, state: Record<string, any>) {
+  function push(type: string, description: string) {
     if (!present.value) {
       present.value = {
         timestamp: Date.now(),
@@ -78,7 +78,7 @@ export const useHistoryStore = defineStore("history", () => {
       timestamp: Date.now(),
       type,
       description,
-      state: deepClone(state),
+      state: captureCurrentState(),
     };
 
     future.value = [];
