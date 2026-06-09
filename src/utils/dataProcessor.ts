@@ -1,5 +1,6 @@
 import { compile } from 'expression-eval'
 import dayjs from 'dayjs'
+import weekOfYear from 'dayjs/plugin/weekOfYear'
 import type {
   DataField,
   FieldType,
@@ -8,6 +9,8 @@ import type {
   BucketConfig,
   DataSource
 } from '../types'
+
+dayjs.extend(weekOfYear)
 
 export function evaluateExpression(
   expression: string,
@@ -96,8 +99,7 @@ export function applyBuckets(
 
     return {
       ...row,
-      [bucketFieldName]: bucketValue,
-      [fieldName]: bucketValue
+      [bucketFieldName]: bucketValue
     }
   })
 
@@ -314,39 +316,55 @@ export function prepareChartData(
   const seriesMap = new Map<string, number[]>()
 
   if (slots.x) {
-    const uniqueCategories = [...new Set(aggregatedData.map((d) => d[slots.x!.fieldName]))]
+    const xFieldName = slots.x.fieldName
+    const uniqueCategories = [...new Set(aggregatedData.map((d) => d[xFieldName]))]
     categories.push(...uniqueCategories)
 
-    const legendField = slots.legend?.fieldName || slots.group?.fieldName
-    if (legendField) {
-      const uniqueLegends = [...new Set(aggregatedData.map((d) => d[legendField]))]
-      uniqueLegends.forEach((legend) => {
-        const data: number[] = []
-        uniqueCategories.forEach((cat) => {
-          const row = aggregatedData.find(
-            (d) => d[slots.x!.fieldName] === cat && d[legendField] === legend
-          )
-          const valueField = valueFields[0]?.field
-          data.push(row?.[valueField] ?? 0)
+    const splitFields: string[] = []
+    if (slots.group) splitFields.push(slots.group.fieldName)
+    if (slots.legend) splitFields.push(slots.legend.fieldName)
+
+    const splitCombos = new Map<string, Record<string, any>>()
+    if (splitFields.length > 0) {
+      aggregatedData.forEach((d) => {
+        const key = splitFields.map((f) => String(d[f] ?? 'null')).join('|||')
+        if (!splitCombos.has(key)) {
+          const combo: Record<string, any> = {}
+          splitFields.forEach((f) => {
+            combo[f] = d[f]
+          })
+          splitCombos.set(key, combo)
+        }
+      })
+    } else {
+      splitCombos.set('', {})
+    }
+
+    if (valueFields.length > 0) {
+      splitCombos.forEach((comboValues) => {
+        const comboLabel = splitFields
+          .map((f) => String(comboValues[f] ?? ''))
+          .join(' - ')
+        valueFields.forEach((vf) => {
+          let seriesName: string
+          if (splitFields.length > 0) {
+            seriesName = valueFields.length > 1 ? `${comboLabel} - ${vf.field}` : comboLabel
+          } else {
+            seriesName = vf.field
+          }
+          const data: number[] = []
+          uniqueCategories.forEach((cat) => {
+            const row = aggregatedData.find((d) => {
+              if (d[xFieldName] !== cat) return false
+              return splitFields.every(
+                (f) => String(d[f] ?? 'null') === String(comboValues[f] ?? 'null')
+              )
+            })
+            data.push(row?.[vf.field] ?? 0)
+          })
+          seriesMap.set(seriesName, data)
         })
-        seriesMap.set(String(legend), data)
       })
-    } else if (valueFields.length > 1) {
-      valueFields.forEach((vf) => {
-        const data: number[] = []
-        uniqueCategories.forEach((cat) => {
-          const row = aggregatedData.find((d) => d[slots.x!.fieldName] === cat)
-          data.push(row?.[vf.field] ?? 0)
-        })
-        seriesMap.set(vf.field, data)
-      })
-    } else if (valueFields.length === 1) {
-      const data: number[] = []
-      uniqueCategories.forEach((cat) => {
-        const row = aggregatedData.find((d) => d[slots.x!.fieldName] === cat)
-        data.push(row?.[valueFields[0].field] ?? 0)
-      })
-      seriesMap.set(valueFields[0].field, data)
     }
   }
 
