@@ -1,94 +1,96 @@
-import { compile } from 'expression-eval'
-import dayjs from 'dayjs'
+import { compile } from "expression-eval";
+import dayjs from "dayjs";
+import weekOfYear from "dayjs/plugin/weekOfYear";
+dayjs.extend(weekOfYear);
 import type {
   DataField,
   FieldType,
   AggregationType,
   Filter,
   BucketConfig,
-  DataSource
-} from '../types'
+  DataSource,
+} from "../types";
 
 export function evaluateExpression(
   expression: string,
-  row: Record<string, any>
+  row: Record<string, any>,
 ): any {
   try {
-    const compiled = compile(expression)
-    return compiled(row)
+    const compiled = compile(expression);
+    return compiled(row);
   } catch (e) {
-    console.error('Expression evaluation error:', e)
-    return null
+    console.error("Expression evaluation error:", e);
+    return null;
   }
 }
 
 export function applyComputedFields(
   dataSource: DataSource,
-  computedFields: DataField[]
+  computedFields: DataField[],
 ): DataSource {
-  const newFields = [...dataSource.fields]
+  const newFields = [...dataSource.fields];
   const newRows = dataSource.rows.map((row) => {
-    const newRow = { ...row }
+    const newRow = { ...row };
     computedFields.forEach((field) => {
       if (field.expression) {
-        newRow[field.name] = evaluateExpression(field.expression, row)
+        newRow[field.name] = evaluateExpression(field.expression, row);
       }
-    })
-    return newRow
-  })
+    });
+    return newRow;
+  });
 
   return {
     ...dataSource,
     fields: [...newFields, ...computedFields],
-    rows: newRows
-  }
+    rows: newRows,
+  };
 }
 
 export function applyBuckets(
   dataSource: DataSource,
   fieldName: string,
-  bucketConfig: BucketConfig
+  bucketConfig: BucketConfig,
 ): DataSource {
-  const field = dataSource.fields.find((f) => f.name === fieldName)
-  if (!field) return dataSource
+  const field = dataSource.fields.find((f) => f.name === fieldName);
+  if (!field) return dataSource;
 
-  const bucketFieldName = `${fieldName}_bucket`
+  const bucketFieldName = `${fieldName}_bucket`;
 
   const newFields = dataSource.fields.map((f) => {
     if (f.name === fieldName) {
-      return { ...f, bucketed: true, bucketConfig }
+      return { ...f, bucketed: true, bucketConfig };
     }
-    return f
-  })
+    return f;
+  });
 
   const newRows = dataSource.rows.map((row) => {
-    const value = row[fieldName]
-    let bucketValue: string | null = null
+    const value = row[fieldName];
+    let bucketValue: string | null = null;
 
     if (value !== null && value !== undefined) {
-      if (bucketConfig.type === 'range' && bucketConfig.ranges) {
+      if (bucketConfig.type === "range" && bucketConfig.ranges) {
         for (const range of bucketConfig.ranges) {
           if (value >= range.min && value < range.max) {
-            bucketValue = range.label
-            break
+            bucketValue = range.label;
+            break;
           }
         }
-      } else if (['year', 'month', 'day', 'week'].includes(bucketConfig.type)) {
-        const date = dayjs(value)
+      } else if (["year", "month", "day", "week"].includes(bucketConfig.type)) {
+        const date = dayjs(value);
         if (date.isValid()) {
           switch (bucketConfig.type) {
-            case 'year':
-              bucketValue = date.format('YYYY')
-              break
-            case 'month':
-              bucketValue = date.format('YYYY-MM')
-              break
-            case 'day':
-              bucketValue = date.format('YYYY-MM-DD')
-              break
-            case 'week':
-              bucketValue = `${date.year()}-W${date.week()}`
-              break
+            case "year":
+              bucketValue = date.format("YYYY");
+              break;
+            case "month":
+              bucketValue = date.format("YYYY-MM");
+              break;
+            case "day":
+              bucketValue = date.format("YYYY-MM-DD");
+              break;
+            case "week":
+              bucketValue = `${date.year()}-W${date.week()}`;
+              break;
           }
         }
       }
@@ -97,267 +99,277 @@ export function applyBuckets(
     return {
       ...row,
       [bucketFieldName]: bucketValue,
-      [fieldName]: bucketValue
-    }
-  })
+    };
+  });
 
   if (!newFields.find((f) => f.name === bucketFieldName)) {
     newFields.push({
       name: bucketFieldName,
-      type: 'text',
+      type: "text",
       bucketed: true,
-      bucketConfig
-    })
+      bucketConfig,
+    });
   }
 
   return {
     ...dataSource,
     fields: newFields,
-    rows: newRows
-  }
+    rows: newRows,
+  };
 }
 
-export function applyFilters(rows: Record<string, any>[], filters: Filter[]): Record<string, any>[] {
-  if (filters.length === 0) return rows
+export function applyFilters(
+  rows: Record<string, any>[],
+  filters: Filter[],
+): Record<string, any>[] {
+  if (filters.length === 0) return rows;
 
   return rows.filter((row) => {
     return filters.every((filter) => {
-      const value = row[filter.field]
+      const value = row[filter.field];
 
       switch (filter.type) {
-        case 'range':
-          if (value === null || value === undefined) return false
-          if (filter.min !== undefined && value < filter.min) return false
-          if (filter.max !== undefined && value > filter.max) return false
-          return true
+        case "range":
+          if (value === null || value === undefined) return false;
+          if (filter.min !== undefined && value < filter.min) return false;
+          if (filter.max !== undefined && value > filter.max) return false;
+          return true;
 
-        case 'enum':
-          if (!filter.values || filter.values.length === 0) return true
-          return filter.values.includes(String(value))
+        case "enum":
+          if (!filter.values || filter.values.length === 0) return true;
+          return filter.values.includes(String(value));
 
-        case 'fuzzy':
-          if (!filter.pattern) return true
-          if (value === null || value === undefined) return false
-          return String(value).toLowerCase().includes(filter.pattern.toLowerCase())
+        case "fuzzy":
+          if (!filter.pattern) return true;
+          if (value === null || value === undefined) return false;
+          return String(value)
+            .toLowerCase()
+            .includes(filter.pattern.toLowerCase());
 
         default:
-          return true
+          return true;
       }
-    })
-  })
+    });
+  });
 }
 
 export function aggregateValues(values: any[], type: AggregationType): number {
-  const numericValues = values
-    .map((v) => Number(v))
-    .filter((v) => !isNaN(v))
+  const numericValues = values.map((v) => Number(v)).filter((v) => !isNaN(v));
 
-  if (numericValues.length === 0) return 0
+  if (numericValues.length === 0) return 0;
 
   switch (type) {
-    case 'sum':
-      return numericValues.reduce((a, b) => a + b, 0)
-    case 'avg':
-      return numericValues.reduce((a, b) => a + b, 0) / numericValues.length
-    case 'max':
-      return Math.max(...numericValues)
-    case 'min':
-      return Math.min(...numericValues)
-    case 'count':
-      return values.length
-    case 'distinctCount':
-      return new Set(values.map((v) => String(v))).size
+    case "sum":
+      return numericValues.reduce((a, b) => a + b, 0);
+    case "avg":
+      return numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+    case "max":
+      return Math.max(...numericValues);
+    case "min":
+      return Math.min(...numericValues);
+    case "count":
+      return values.length;
+    case "distinctCount":
+      return new Set(values.map((v) => String(v))).size;
     default:
-      return 0
+      return 0;
   }
 }
 
 export function groupAndAggregate(
   rows: Record<string, any>[],
   groupFields: string[],
-  valueFields: Array<{ field: string; aggregation: AggregationType }>
+  valueFields: Array<{ field: string; aggregation: AggregationType }>,
 ): Array<Record<string, any>> {
-  const groups = new Map<string, Record<string, any>>()
+  const groups = new Map<string, Record<string, any>>();
 
   rows.forEach((row) => {
     const groupKey = groupFields
-      .map((f) => String(row[f] ?? 'null'))
-      .join('|||')
+      .map((f) => String(row[f] ?? "null"))
+      .join("|||");
 
     if (!groups.has(groupKey)) {
-      const group: Record<string, any> = {}
+      const group: Record<string, any> = {};
       groupFields.forEach((f) => {
-        group[f] = row[f]
-      })
+        group[f] = row[f];
+      });
       valueFields.forEach((vf) => {
-        group[vf.field] = []
-      })
-      groups.set(groupKey, group)
+        group[vf.field] = [];
+      });
+      groups.set(groupKey, group);
     }
 
-    const group = groups.get(groupKey)!
+    const group = groups.get(groupKey)!;
     valueFields.forEach((vf) => {
-      group[vf.field].push(row[vf.field])
-    })
-  })
+      group[vf.field].push(row[vf.field]);
+    });
+  });
 
   return Array.from(groups.values()).map((group) => {
-    const result: Record<string, any> = { ...group }
+    const result: Record<string, any> = { ...group };
     valueFields.forEach((vf) => {
-      const values = group[vf.field]
-      result[vf.field] = aggregateValues(values, vf.aggregation)
-    })
-    return result
-  })
+      const values = group[vf.field];
+      result[vf.field] = aggregateValues(values, vf.aggregation);
+    });
+    return result;
+  });
 }
 
 export function convertFieldType(
   dataSource: DataSource,
   fieldName: string,
-  newType: FieldType
+  newType: FieldType,
 ): DataSource {
   const newFields = dataSource.fields.map((f) => {
     if (f.name === fieldName) {
       return {
         ...f,
         type: newType,
-        originalType: f.originalType ?? f.type
-      }
+        originalType: f.originalType ?? f.type,
+      };
     }
-    return f
-  })
+    return f;
+  });
 
   const newRows = dataSource.rows.map((row) => {
-    const value = row[fieldName]
-    let convertedValue: any = value
+    const value = row[fieldName];
+    let convertedValue: any = value;
 
     if (value !== null && value !== undefined) {
       switch (newType) {
-        case 'number':
-          const num = Number(value)
-          convertedValue = isNaN(num) ? null : num
-          break
-        case 'boolean':
-          const str = String(value).toLowerCase()
-          convertedValue = str === 'true' || str === 'yes' || str === '1'
-          break
-        case 'date':
-          const date = new Date(value)
-          convertedValue = isNaN(date.getTime()) ? null : date.toISOString()
-          break
-        case 'text':
-          convertedValue = String(value)
-          break
+        case "number":
+          const num = Number(value);
+          convertedValue = isNaN(num) ? null : num;
+          break;
+        case "boolean":
+          const str = String(value).toLowerCase();
+          convertedValue = str === "true" || str === "yes" || str === "1";
+          break;
+        case "date":
+          const date = new Date(value);
+          convertedValue = isNaN(date.getTime()) ? null : date.toISOString();
+          break;
+        case "text":
+          convertedValue = String(value);
+          break;
       }
     }
 
     return {
       ...row,
-      [fieldName]: convertedValue
-    }
-  })
+      [fieldName]: convertedValue,
+    };
+  });
 
   return {
     ...dataSource,
     fields: newFields,
-    rows: newRows
-  }
+    rows: newRows,
+  };
 }
 
 export function prepareChartData(
   dataSource: DataSource,
   slots: {
-    x: { fieldName: string } | null
-    y: Array<{ fieldName: string; aggregation?: AggregationType }>
-    group: { fieldName: string } | null
-    legend: { fieldName: string } | null
-    metric: { fieldName: string; aggregation?: AggregationType } | null
-    filters: Filter[]
-  }
+    x: { fieldName: string } | null;
+    y: Array<{ fieldName: string; aggregation?: AggregationType }>;
+    group: { fieldName: string } | null;
+    legend: { fieldName: string } | null;
+    metric: { fieldName: string; aggregation?: AggregationType } | null;
+    filters: Filter[];
+  },
 ): {
-  categories: any[]
+  categories: any[];
   series: Array<{
-    name: string
-    data: number[]
-  }>
-  rawData: Record<string, any>[]
+    name: string;
+    data: number[];
+  }>;
+  rawData: Record<string, any>[];
 } {
-  let processedRows = applyFilters(dataSource.rows, slots.filters)
+  let processedRows = applyFilters(dataSource.rows, slots.filters);
 
-  const groupFields: string[] = []
-  if (slots.x) groupFields.push(slots.x.fieldName)
-  if (slots.group) groupFields.push(slots.group.fieldName)
-  if (slots.legend) groupFields.push(slots.legend.fieldName)
+  const groupFields: string[] = [];
+  if (slots.x) groupFields.push(slots.x.fieldName);
+  if (slots.group) groupFields.push(slots.group.fieldName);
+  if (slots.legend) groupFields.push(slots.legend.fieldName);
 
-  const valueFields: Array<{ field: string; aggregation: AggregationType }> = []
+  const valueFields: Array<{ field: string; aggregation: AggregationType }> =
+    [];
   slots.y.forEach((y) => {
     valueFields.push({
       field: y.fieldName,
-      aggregation: y.aggregation || 'sum'
-    })
-  })
+      aggregation: y.aggregation || "sum",
+    });
+  });
   if (slots.metric) {
     valueFields.push({
       field: slots.metric.fieldName,
-      aggregation: slots.metric.aggregation || 'sum'
-    })
+      aggregation: slots.metric.aggregation || "sum",
+    });
   }
 
-  let aggregatedData: Record<string, any>[]
+  let aggregatedData: Record<string, any>[];
   if (groupFields.length > 0 && valueFields.length > 0) {
-    aggregatedData = groupAndAggregate(processedRows, groupFields, valueFields)
+    aggregatedData = groupAndAggregate(processedRows, groupFields, valueFields);
   } else {
-    aggregatedData = processedRows
+    aggregatedData = processedRows;
   }
 
-  const categories: any[] = []
-  const seriesMap = new Map<string, number[]>()
+  const categories: any[] = [];
+  const seriesMap = new Map<string, number[]>();
 
   if (slots.x) {
-    const uniqueCategories = [...new Set(aggregatedData.map((d) => d[slots.x!.fieldName]))]
-    categories.push(...uniqueCategories)
+    const uniqueCategories = [
+      ...new Set(aggregatedData.map((d) => d[slots.x!.fieldName])),
+    ];
+    categories.push(...uniqueCategories);
 
-    const legendField = slots.legend?.fieldName || slots.group?.fieldName
+    const legendField = slots.legend?.fieldName || slots.group?.fieldName;
     if (legendField) {
-      const uniqueLegends = [...new Set(aggregatedData.map((d) => d[legendField]))]
-      uniqueLegends.forEach((legend) => {
-        const data: number[] = []
-        uniqueCategories.forEach((cat) => {
-          const row = aggregatedData.find(
-            (d) => d[slots.x!.fieldName] === cat && d[legendField] === legend
-          )
-          const valueField = valueFields[0]?.field
-          data.push(row?.[valueField] ?? 0)
-        })
-        seriesMap.set(String(legend), data)
-      })
+      const uniqueLegends = [
+        ...new Set(aggregatedData.map((d) => d[legendField])),
+      ];
+      valueFields.forEach((vf) => {
+        uniqueLegends.forEach((legend) => {
+          const data: number[] = [];
+          uniqueCategories.forEach((cat) => {
+            const row = aggregatedData.find(
+              (d) => d[slots.x!.fieldName] === cat && d[legendField] === legend,
+            );
+            data.push(row?.[vf.field] ?? 0);
+          });
+          const seriesName =
+            valueFields.length > 1 ? `${legend} - ${vf.field}` : String(legend);
+          seriesMap.set(seriesName, data);
+        });
+      });
     } else if (valueFields.length > 1) {
       valueFields.forEach((vf) => {
-        const data: number[] = []
+        const data: number[] = [];
         uniqueCategories.forEach((cat) => {
-          const row = aggregatedData.find((d) => d[slots.x!.fieldName] === cat)
-          data.push(row?.[vf.field] ?? 0)
-        })
-        seriesMap.set(vf.field, data)
-      })
+          const row = aggregatedData.find((d) => d[slots.x!.fieldName] === cat);
+          data.push(row?.[vf.field] ?? 0);
+        });
+        seriesMap.set(vf.field, data);
+      });
     } else if (valueFields.length === 1) {
-      const data: number[] = []
+      const data: number[] = [];
       uniqueCategories.forEach((cat) => {
-        const row = aggregatedData.find((d) => d[slots.x!.fieldName] === cat)
-        data.push(row?.[valueFields[0].field] ?? 0)
-      })
-      seriesMap.set(valueFields[0].field, data)
+        const row = aggregatedData.find((d) => d[slots.x!.fieldName] === cat);
+        data.push(row?.[valueFields[0].field] ?? 0);
+      });
+      seriesMap.set(valueFields[0].field, data);
     }
   }
 
   const series = Array.from(seriesMap.entries()).map(([name, data]) => ({
     name,
-    data
-  }))
+    data,
+  }));
 
   return {
     categories,
     series,
-    rawData: aggregatedData
-  }
+    rawData: aggregatedData,
+  };
 }
